@@ -31,7 +31,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\start-agent.ps1
 Or set `GEMINI_API_KEY` in your process environment, then run:
 
 ```powershell
-$env:GEMINI_MODEL = 'gemini-3.8-flash' # optional; choose a model your account supports
+$env:GEMINI_MODEL = 'gemini-3.5-flash-lite' # optional; choose a model your account supports
 uv run --frozen agent.py
 uv run --frozen agent.py --task 'Review Requests 2.32.4 and prioritize remediation for our inventory.'
 ```

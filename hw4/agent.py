@@ -137,10 +137,10 @@ async def run_agent(router: ToolRouter, task: str, max_turns: int) -> str:
                            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                            timeout=120, max_retries=2) as client:
         for _ in range(max_turns):
-            print(f"Waiting for Gemini ({os.environ.get('GEMINI_MODEL', 'gemini-3.8-flash')}), "
+            print(f"Waiting for Gemini ({os.environ.get('GEMINI_MODEL', 'gemini-3.5-flash-lite')}), "
                   f"step {_ + 1}/{max_turns}...", file=sys.stderr)
             response = await client.chat.completions.create(
-                model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash"),
+                model=os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
                 messages=conversation, tools=router.definitions,
             )
             if not response.choices:
