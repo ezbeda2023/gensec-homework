@@ -55,9 +55,9 @@ class ToolRouter:
             for tool in listing.tools:
                 qualified = f"{name}__{tool.name}"
                 self.routes[qualified] = (session, tool.name)
-                self.definitions.append({"type": "function", "name": qualified,
+                self.definitions.append({"type": "function", "function": {"name": qualified,
                                          "description": tool.description or tool.name,
-                                         "parameters": tool.inputSchema})
+                                         "parameters": tool.inputSchema}})
             print(f"Connected {name}: {', '.join(t.name for t in listing.tools)}", file=sys.stderr)
 
     async def call(self, name: str, arguments: dict) -> dict:
@@ -118,7 +118,7 @@ async def demo(router: ToolRouter, skip_fetch: bool = False) -> str:
 
 
 async def run_agent(router: ToolRouter, task: str, max_turns: int) -> str:
-    """Let an OpenAI model select MCP tools until it produces a final answer."""
+    """Use Gemini's OpenAI-compatible API to select and coordinate MCP tools."""
     from openai import AsyncOpenAI
 
     instructions = (
@@ -131,15 +131,21 @@ async def run_agent(router: ToolRouter, task: str, max_turns: int) -> str:
         "The severity 6.5 is a classroom input, not a verified CVSS rating. "
         f"Approved URLs: {json.dumps(router.config['approved_urls'])}"
     )
-    conversation = [{"role": "user", "content": task}]
-    async with AsyncOpenAI(timeout=60, max_retries=2) as client:
+    conversation = [{"role": "system", "content": instructions},
+                    {"role": "user", "content": task}]
+    async with AsyncOpenAI(api_key=os.environ["GEMINI_API_KEY"],
+                           base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                           timeout=60, max_retries=2) as client:
         for _ in range(max_turns):
-            response = await client.responses.create(
-                model=os.environ.get("OPENAI_MODEL", "gpt-4.1-mini"),
-                instructions=instructions, input=conversation, tools=router.definitions,
+            response = await client.chat.completions.create(
+                model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash"),
+                messages=conversation, tools=router.definitions,
             )
-            conversation.extend(item.model_dump(mode="json") for item in response.output)
-            calls = [item for item in response.output if item.type == "function_call"]
+            if not response.choices:
+                raise RuntimeError("Gemini returned no response choices")
+            message = response.choices[0].message
+            conversation.append(message.model_dump(mode="json", exclude_none=True))
+            calls = message.tool_calls or []
             if not calls:
                 successful = {entry["tool"] for entry in router.trace if not entry["is_error"]}
                 required = {"fetch__fetch", "triage__list_assets", "triage__assess_assets",
@@ -149,16 +155,16 @@ async def run_agent(router: ToolRouter, task: str, max_turns: int) -> str:
                                          "Complete the missing tools before finalizing: "
                                          + ", ".join(sorted(required - successful))})
                     continue
-                if not response.output_text.strip():
+                if not (message.content or "").strip():
                     raise RuntimeError("Model returned an empty final answer")
-                return response.output_text
+                return message.content
             for call in calls:
                 try:
-                    result = await router.call(call.name, json.loads(call.arguments))
+                    result = await router.call(call.function.name, json.loads(call.function.arguments))
                 except (ValueError, TypeError) as exc:
                     result = {"is_error": True, "error": str(exc)}
-                conversation.append({"type": "function_call_output", "call_id": call.call_id,
-                                     "output": json.dumps(result)})
+                conversation.append({"role": "tool", "tool_call_id": call.id,
+                                     "content": json.dumps(result)})
     raise RuntimeError(f"Agent reached the {max_turns}-turn limit without completing the workflow")
 
 
@@ -173,8 +179,8 @@ async def main() -> None:
     args = parser.parse_args()
     if not 1 <= args.max_turns <= 30:
         parser.error("--max-turns must be between 1 and 30")
-    if not (args.demo or args.smoke_test) and not os.environ.get("OPENAI_API_KEY"):
-        parser.error("Set OPENAI_API_KEY in your environment, or use --demo / --smoke-test")
+    if not (args.demo or args.smoke_test) and not os.environ.get("GEMINI_API_KEY"):
+        parser.error("Set GEMINI_API_KEY in your environment, or use --demo / --smoke-test")
     router = ToolRouter()
     async with AsyncExitStack() as stack:
         await router.connect(stack)
