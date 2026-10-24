@@ -170,6 +170,8 @@ async def run_agent(router: ToolRouter, task: str, max_turns: int) -> str:
 
 async def main() -> None:
     """Parse CLI arguments, run the workflow, and write a report plus MCP trace."""
+    from openai import APIError, APIStatusError
+
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--demo", action="store_true", help="Scripted live MCP demo; no API key")
@@ -182,11 +184,29 @@ async def main() -> None:
     if not (args.demo or args.smoke_test) and not os.environ.get("GEMINI_API_KEY"):
         parser.error("Set GEMINI_API_KEY in your environment, or use --demo / --smoke-test")
     router = ToolRouter()
+    failure = None
     async with AsyncExitStack() as stack:
         await router.connect(stack)
-        report = (await demo(router, skip_fetch=args.smoke_test)
-                  if args.demo or args.smoke_test
-                  else await run_agent(router, args.task, args.max_turns))
+        try:
+            report = (await demo(router, skip_fetch=args.smoke_test)
+                      if args.demo or args.smoke_test
+                      else await run_agent(router, args.task, args.max_turns))
+        except APIError as error:
+            # Close MCP task groups normally before reporting provider failures.
+            if isinstance(error, APIStatusError) and error.status_code == 503:
+                failure = ("Gemini is temporarily unavailable (HTTP 503) after automatic retries. "
+                           "Wait a minute or two and run the launcher again. "
+                           "You can also set GEMINI_MODEL to another model your account supports. "
+                           "No completed report was written for this run.")
+            elif isinstance(error, APIStatusError):
+                failure = (f"Gemini API request failed (HTTP {error.status_code}). "
+                           "Check model access, API credentials, and quota in Google AI Studio. "
+                           "No completed report was written for this run.")
+            else:
+                failure = ("Could not complete the Gemini API request. Check your connection "
+                           "and try again. No completed report was written for this run.")
+    if failure:
+        raise RuntimeError(failure)
     output = ROOT / "output"
     output.mkdir(exist_ok=True)
     label = "smoke" if args.smoke_test else "demo" if args.demo else "agent"

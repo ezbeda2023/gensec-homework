@@ -13,7 +13,9 @@ try {
     } else {
         throw 'Install uv first: https://docs.astral.sh/uv/getting-started/installation/'
     }
+    $agentExitCode = $LASTEXITCODE
 } finally {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($keyPointer)
     Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
 }
+exit $agentExitCode

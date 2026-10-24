@@ -94,6 +94,13 @@ see [the dependency review](SERVER_REVIEW.md).
 
 ## Outputs and verification
 
+If Gemini reports **HTTP 503**, the model is temporarily unavailable. The client
+already retries transient failures twice. Wait a minute or two and rerun the
+launcher, or set `GEMINI_MODEL` to another model available to your account.
+The app prints a concise error after closing both MCP sessions and exits with
+a failure status. A failed run does not write a new completed report; any report
+from a previous successful run remains on disk.
+
 Reports and full MCP tool traces are saved locally under ignored `output/`:
 `demo-report.md`, `demo-trace.json`, or `agent-report.md`, `agent-trace.json`.
 Read the agent report for evidence, affected-range qualifications and source citations.
