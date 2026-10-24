@@ -101,6 +101,12 @@ The app prints a concise error after closing both MCP sessions and exits with
 a failure status. A failed run does not write a new completed report; any report
 from a previous successful run remains on disk.
 
+For transport failures, `APITimeoutError` means no response arrived within the
+120-second timeout per attempt. `APIConnectionError` means the HTTP connection
+failed; the message includes underlying exception class names to help distinguish
+connection, DNS, proxy, and TLS issues without printing sensitive exception text.
+Each model turn prints its model name and step so the terminal shows progress.
+
 Reports and full MCP tool traces are saved locally under ignored `output/`:
 `demo-report.md`, `demo-trace.json`, or `agent-report.md`, `agent-trace.json`.
 Read the agent report for evidence, affected-range qualifications and source citations.

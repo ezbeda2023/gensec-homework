@@ -135,8 +135,10 @@ async def run_agent(router: ToolRouter, task: str, max_turns: int) -> str:
                     {"role": "user", "content": task}]
     async with AsyncOpenAI(api_key=os.environ["GEMINI_API_KEY"],
                            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-                           timeout=60, max_retries=2) as client:
+                           timeout=120, max_retries=2) as client:
         for _ in range(max_turns):
+            print(f"Waiting for Gemini ({os.environ.get('GEMINI_MODEL', 'gemini-3.8-flash')}), "
+                  f"step {_ + 1}/{max_turns}...", file=sys.stderr)
             response = await client.chat.completions.create(
                 model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash"),
                 messages=conversation, tools=router.definitions,
@@ -170,7 +172,7 @@ async def run_agent(router: ToolRouter, task: str, max_turns: int) -> str:
 
 async def main() -> None:
     """Parse CLI arguments, run the workflow, and write a report plus MCP trace."""
-    from openai import APIError, APIStatusError
+    from openai import APIConnectionError, APIError, APIStatusError, APITimeoutError
 
     parser = argparse.ArgumentParser(description=__doc__)
     modes = parser.add_mutually_exclusive_group()
@@ -193,7 +195,25 @@ async def main() -> None:
                       else await run_agent(router, args.task, args.max_turns))
         except APIError as error:
             # Close MCP task groups normally before reporting provider failures.
-            if isinstance(error, APIStatusError) and error.status_code == 503:
+            if isinstance(error, APITimeoutError):
+                failure = ("Gemini request timed out (APITimeoutError) after automatic retries. "
+                           "Each attempt allows 120 seconds. Google may be slow or the connection "
+                           "may be interrupted. Try a different supported GEMINI_MODEL or retry later. "
+                           "No completed report was written for this run.")
+            elif isinstance(error, APIConnectionError):
+                # Exception classes are useful diagnostics without printing URLs,
+                # headers, proxy credentials, or provider bodies containing secrets.
+                causes = []
+                cause = error.__cause__
+                while cause is not None and len(causes) < 5:
+                    causes.append(type(cause).__name__)
+                    cause = cause.__cause__
+                detail = " -> ".join(causes) or "no underlying exception provided"
+                failure = (f"Cannot connect to Gemini (APIConnectionError; {detail}). "
+                           "Check VPN/proxy settings, DNS and HTTPS access to "
+                           "generativelanguage.googleapis.com. "
+                           "No completed report was written for this run.")
+            elif isinstance(error, APIStatusError) and error.status_code == 503:
                 failure = ("Gemini is temporarily unavailable (HTTP 503) after automatic retries. "
                            "Wait a minute or two and run the launcher again. "
                            "You can also set GEMINI_MODEL to another model your account supports. "
@@ -203,8 +223,8 @@ async def main() -> None:
                            "Check model access, API credentials, and quota in Google AI Studio. "
                            "No completed report was written for this run.")
             else:
-                failure = ("Could not complete the Gemini API request. Check your connection "
-                           "and try again. No completed report was written for this run.")
+                failure = (f"Gemini client failed ({type(error).__name__}). "
+                           "No completed report was written for this run.")
     if failure:
         raise RuntimeError(failure)
     output = ROOT / "output"
