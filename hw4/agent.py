@@ -65,7 +65,7 @@ class ToolRouter:
         if name not in self.routes:
             raise ValueError(f"Unknown tool: {name}")
         if not isinstance(arguments, dict):
-            raise ValueError("Tool arguments must be a JSON object")
+            raise TypeError("Tool arguments must be a JSON object")
         if name == "fetch__fetch":
             if arguments.get("url") not in self.config["approved_urls"]:
                 raise ValueError("Only the checked-in advisory URL is approved")
@@ -74,7 +74,8 @@ class ToolRouter:
         session, original = self.routes[name]
         result = await session.call_tool(original, arguments=arguments)
         payload = {"is_error": bool(result.isError),
-                   "content": [part.model_dump(mode="json") for part in result.content]}
+                   "content": [part.model_dump(mode="json") for part in result.content],
+                   "structured": result.structuredContent}
         self.trace.append({"tool": name, "arguments": arguments, **payload})
         print(f"Tool {name}: {'ERROR' if result.isError else 'OK'}", file=sys.stderr)
         return payload
@@ -102,7 +103,10 @@ async def demo(router: ToolRouter, skip_fetch: bool = False) -> str:
         "package": "requests", "fixed_version": "2.32.4", "severity": 6.5})
     if findings_result["is_error"]:
         raise RuntimeError(text_of(findings_result))
-    findings = json.loads(text_of(findings_result))
+    structured = findings_result.get("structured")
+    findings = (structured["result"] if structured and "result" in structured
+                else [json.loads(part["text"]) for part in findings_result["content"]
+                      if part.get("type") == "text"])
     plan = await router.call("triage__remediation_plan", {"findings": findings})
     if plan["is_error"]:
         raise RuntimeError(text_of(plan))
@@ -187,6 +191,8 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     try:
         asyncio.run(main())
     except (RuntimeError, ValueError) as error:
