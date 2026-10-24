@@ -1,0 +1,6 @@
+[
+  {"id":"web-01","package":"requests","version":"2.31.0","criticality":5,"internet_exposed":true,"owner":"Web team"},
+  {"id":"jobs-01","package":"requests","version":"2.32.3","criticality":3,"internet_exposed":false,"owner":"Data team"},
+  {"id":"api-01","package":"requests","version":"2.32.4","criticality":5,"internet_exposed":true,"owner":"API team"},
+  {"id":"worker-02","package":"urllib3","version":"2.5.0","criticality":2,"internet_exposed":false,"owner":"Platform team"}
+]

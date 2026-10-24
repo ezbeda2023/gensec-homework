@@ -1,0 +1,14 @@
+.tools/
+.uv-cache/
+.fetch-package.json
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+hw4/output/
+hw4/submission/screenshots/*
+!hw4/submission/screenshots/README.md
+hw4.assignment-note

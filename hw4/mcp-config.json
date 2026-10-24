@@ -1,0 +1,7 @@
+{
+  "servers": {
+    "triage": {"args": ["{project}/mcp-server.py"]},
+    "fetch": {"args": ["-m", "mcp_server_fetch"]}
+  },
+  "approved_urls": ["https://raw.githubusercontent.com/psf/requests/v2.32.4/HISTORY.md"]
+}
