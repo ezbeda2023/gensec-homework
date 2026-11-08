@@ -1,0 +1,7 @@
+{"timestamp":"2026-11-08T12:00:00Z","ip":"192.0.2.10","user":"alice","result":"failure"}
+{"timestamp":"2026-11-08T12:00:10Z","ip":"192.0.2.10","user":"alice","result":"failure"}
+{"timestamp":"2026-11-08T12:00:20Z","ip":"192.0.2.10","user":"alice","result":"failure"}
+{"timestamp":"2026-11-08T12:00:30Z","ip":"192.0.2.10","user":"alice","result":"failure"}
+{"timestamp":"2026-11-08T12:00:40Z","ip":"192.0.2.10","user":"alice","result":"failure"}
+{"timestamp":"2026-11-08T12:00:50Z","ip":"192.0.2.10","user":"alice","result":"success"}
+{"timestamp":"2026-11-08T12:01:00Z","ip":"2001:db8::1","user":"bob","result":"success"}

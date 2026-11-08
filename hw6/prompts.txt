@@ -1,0 +1,45 @@
+Coding agent: OpenAI Codex (this session).
+
+DEVELOPMENT RECORD
+The actual user prompt was the HW6 assignment supplied in this conversation:
+create a secure Python application using a coding agent, refer to previous
+homework workflows, track prompts, commit/push, and prepare a <=5-minute replay
+with security discussion, demonstration, screenshots, and submission URLs.
+Codex selected an offline authentication-log analyzer and implemented it.
+The prompts below distill that request into a reproducible replay sequence.
+They are prepared replay prompts, NOT a claim that separate user turns occurred.
+Save the real replies and screenshots when you actually run the replay.
+
+REPLAY PROMPT 1 — BUILD
+Use Python 3.11+ and only its standard library to create app.py, a local CLI
+authentication-log analyzer. Read UTF-8 JSON Lines with exactly timestamp, ip,
+user, result. Require timezone-aware timestamps, valid IPv4/IPv6, printable
+usernames of length 1..64, and success/failure results. Sort chronologically.
+Detect 5 failures from one IP within an inclusive 300-second sliding window;
+emit one repeated-failures alert per IP. Flag a success only when at least
+5 preceding failures in that window match both IP and user; clear that user's
+failure sequence after success. Support --threshold (2..1000), --window
+(1..86400 seconds), and --output. Produce an ASCII-escaped JSON report on
+stdout, and optionally create a new output file exclusively without overwriting.
+Fail closed with exit code 2 on invalid input, without echoing raw input or paths.
+Bound input to 2 MiB, 10000 events, and 4096 bytes per line using bounded reads.
+Never execute log content, contact networks, or modify input. Include synthetic
+samples/auth.jsonl with five failures then success and a normal IPv6 login;
+include samples/invalid.jsonl demonstrating rejection. State heuristic limits.
+
+REPLAY PROMPT 2 — VERIFY
+Review the implementation for adversarial input and fix actual defects. Add
+standard-library unittest coverage for demo alerts, unsorted records, inclusive
+window boundaries, same-user correlation, malformed IPs/results/timestamps,
+control characters, extra fields, wrong types, oversized lines, and refusal to
+overwrite reports. Run python -m unittest -v and both sample CLI commands.
+Report actual results, and explain false positives and missed distributed or
+slow attacks. Do not claim tests passed unless they ran.
+
+REPLAY PROMPT 3 — DOCUMENT
+Write README.md with Windows run commands, schema, expected demo findings,
+security controls, and limitations. Identify Codex as the coding agent. Write
+a narrated screencast guide under five minutes beginning with camera on and
+git clone, followed by prompt overview, actual regeneration in a clean replay
+folder, security discussion, capabilities and limitations. Keep recording URLs
+and screenshots pending until genuine evidence exists.
